@@ -1,0 +1,68 @@
+{
+  "name": "savekit",
+  "version": "1.0.0",
+  "description": "现代化的浏览器端文件保存库，TypeScript 实现，支持 File System Access API、进度回调、可取消下载",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "README.md", "README.en.md", "LICENSE"],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "playground": "vite playground",
+    "playground:build": "vite build playground",
+    "release:tag": "git tag -a v$npm_package_version -m \"Release v$npm_package_version\" && git push origin v$npm_package_version",
+    "prepublishOnly": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "keywords": [
+    "file-saver",
+    "saveAs",
+    "download",
+    "blob",
+    "file-system-access",
+    "typescript",
+    "browser",
+    "esm"
+  ],
+  "author": "dingh123",
+  "license": "MIT",
+  "homepage": "https://github.com/dingh123/savekit#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dingh123/savekit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dingh123/savekit/issues"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.10.0",
+    "@types/wicg-file-system-access": "^2023.10.5",
+    "@vitest/coverage-v8": "^2.1.8",
+    "happy-dom": "^15.11.7",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.1",
+    "vitest": "^2.1.8"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

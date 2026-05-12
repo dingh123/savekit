@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>savekit Playground</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      body {
+        max-width: 720px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.6;
+      }
+      h1 { font-size: 1.5rem; }
+      .card {
+        border: 1px solid #8884;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      .card h2 { font-size: 1rem; margin: 0 0 0.5rem 0; }
+      button {
+        padding: 0.4rem 0.9rem;
+        border-radius: 6px;
+        border: 1px solid #8886;
+        background: transparent;
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+      button:hover { background: #8881; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .log {
+        background: #8881;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.8rem;
+        max-height: 200px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        margin-top: 0.5rem;
+      }
+      .progress {
+        height: 6px;
+        background: #8882;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+      }
+      .progress > div {
+        height: 100%;
+        background: #4a9eff;
+        width: 0;
+        transition: width 0.1s linear;
+      }
+      input[type="url"], input[type="text"] {
+        width: 100%;
+        padding: 0.4rem;
+        border: 1px solid #8886;
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+        background: transparent;
+        color: inherit;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>savekit Playground</h1>
+    <p>本页面用于本地手测，所有保存均在浏览器内完成。打开 DevTools 控制台可看到详细日志。</p>
+
+    <div class="card">
+      <h2>1. 文本</h2>
+      <button id="btn-text">保存 hello.txt</button>
+      <div class="log" id="log-text"></div>
+    </div>
+
+    <div class="card">
+      <h2>2. Blob（JSON）</h2>
+      <button id="btn-blob">保存 data.json</button>
+      <div class="log" id="log-blob"></div>
+    </div>
+
+    <div class="card">
+      <h2>3. 远程 URL + 下载进度</h2>
+      <input type="url" id="remote-url" value="https://raw.githubusercontent.com/eligrey/FileSaver.js/master/README.md" />
+      <button id="btn-remote">下载并保存</button>
+      <button id="btn-remote-abort" disabled>取消</button>
+      <div class="progress"><div id="bar-remote"></div></div>
+      <div class="log" id="log-remote"></div>
+    </div>
+
+    <div class="card">
+      <h2>4. 大文件（10 MB 模拟流）</h2>
+      <button id="btn-large">保存 large.bin</button>
+      <div class="progress"><div id="bar-large"></div></div>
+      <div class="log" id="log-large"></div>
+    </div>
+
+    <div class="card">
+      <h2>5. 强制走 anchor-download（关闭 picker）</h2>
+      <button id="btn-anchor">保存 forced.txt</button>
+      <div class="log" id="log-anchor"></div>
+    </div>
+
+    <div class="card">
+      <h2>6. File System Access — picker 带文件类型</h2>
+      <button id="btn-picker">用 picker 保存</button>
+      <div class="log" id="log-picker"></div>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
