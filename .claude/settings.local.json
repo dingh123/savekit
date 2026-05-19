@@ -20,7 +20,8 @@
       "Bash(echo \"exit=$?\")",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(command -v gh)",
-      "Bash(gh api *)"
+      "Bash(gh api *)",
+      "Bash(gh run *)"
     ]
   }
 }
