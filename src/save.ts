@@ -193,10 +193,13 @@ export async function save(data: SaveData, opts: SaveOptions = {}): Promise<Save
       if (plan.directAnchor) {
         const filename = resolveFilename(opts.filename, fallbackName, normalized.suggestedMime);
         runCallback(opts.onStart, { filename, method: 'anchor-navigate' });
-        writeViaAnchorNavigate({
+        // FileSaver.js parity: Path B (ms-save-blob env) defers the no-CORS
+        // anchor click via setTimeout; Path A keeps it synchronous.
+        await writeViaAnchorNavigate({
           url: normalized.remoteUrl,
           filename,
           newTab: plan.newTab,
+          defer: blobMethod === 'ms-save-blob',
         });
         emitProgress({ loaded: 0, phase: 'done' });
         const result: SaveResult = {

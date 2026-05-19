@@ -5,6 +5,13 @@ export interface AnchorNavigateOptions {
   url: string;
   filename: string;
   newTab: boolean;
+  /**
+   * Defer the click via `setTimeout(0)`. Mirrors FileSaver.js Path B's
+   * cross-origin no-CORS branch (line 123 upstream), which schedules the
+   * click instead of dispatching it synchronously. Path A's URL branches
+   * remain synchronous.
+   */
+  defer?: boolean;
 }
 
 export interface AnchorNavigateResult {
@@ -22,7 +29,9 @@ export interface AnchorNavigateResult {
  *     server's Content-Disposition matters) — this is the unavoidable trade-off
  *     when the response can't be read as a Blob.
  */
-export function writeViaAnchorNavigate(opts: AnchorNavigateOptions): AnchorNavigateResult {
+export async function writeViaAnchorNavigate(
+  opts: AnchorNavigateOptions,
+): Promise<AnchorNavigateResult> {
   if (typeof document === 'undefined') {
     throw new SaveError('document is not available; cannot use anchor-navigate strategy');
   }
@@ -35,10 +44,23 @@ export function writeViaAnchorNavigate(opts: AnchorNavigateOptions): AnchorNavig
   a.style.display = 'none';
 
   document.body?.appendChild(a);
-  try {
-    clickAnchor(a);
-  } finally {
-    document.body?.removeChild(a);
+  if (opts.defer) {
+    await new Promise<void>((resolve) => {
+      setTimeout(() => {
+        try {
+          clickAnchor(a);
+        } finally {
+          document.body?.removeChild(a);
+          resolve();
+        }
+      }, 0);
+    });
+  } else {
+    try {
+      clickAnchor(a);
+    } finally {
+      document.body?.removeChild(a);
+    }
   }
 
   return { bytes: 0 };

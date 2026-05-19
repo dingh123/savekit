@@ -1,6 +1,6 @@
 {
   "name": "savekit",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "现代化的浏览器端文件保存库，TypeScript 实现，支持 File System Access API、进度回调、可取消下载",
   "type": "module",
   "main": "./dist/index.cjs",

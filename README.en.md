@@ -11,7 +11,7 @@
 
 ---
 
-`savekit` is a modern rewrite of the classic [`FileSaver.js`](https://github.com/eligrey/FileSaver.js). It drops legacy compatibility shims (IE, old Edge, ancient iOS WebView) and adds:
+`savekit` is a TypeScript rewrite of the classic [`FileSaver.js`](https://github.com/eligrey/FileSaver.js). **The save mechanics are behavior-aligned with upstream FileSaver.js** — every legacy branch is preserved (`msSaveOrOpenBlob` for IE10+ / old Edge, the cross-origin no-CORS new-tab fallback, the FileReader path for Safari / Chrome iOS / macOS WebView). On top of that, it adds:
 
 - ✅ First-class TypeScript types
 - ✅ Promise **and** callback APIs (`onStart` / `onProgress` / `onSuccess` / `onError` / `onAbort`)

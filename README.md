@@ -11,7 +11,7 @@
 
 ---
 
-`savekit` 是对经典 [`FileSaver.js`](https://github.com/eligrey/FileSaver.js) 的现代重写，针对 2026 年的浏览器环境去掉了 IE / 旧 Edge / 老 iOS WebView 的兼容包袱，并补齐了：
+`savekit` 是对经典 [`FileSaver.js`](https://github.com/eligrey/FileSaver.js) 的 TypeScript 重写：**保存机制与 upstream FileSaver.js 行为对齐**，包括 IE10+ / 旧 Edge 的 `msSaveOrOpenBlob`、跨域无 CORS 的新标签兜底、Safari / Chrome iOS / macOS WebView 的 FileReader 路径等所有边角分支都完整保留；同时补齐了现代化的能力：
 
 - ✅ **TypeScript 原生类型**，严格模式编译
 - ✅ **Promise + 回调**：`await save(...)` 与 `onStart / onProgress / onSuccess / onError / onAbort` 两套 API 并存
@@ -79,8 +79,8 @@ await saveAs(blob, 'report.pdf');
 | `Blob` / `File` | 直接保存 |
 | `ArrayBuffer` / `ArrayBufferView` | 自动包成 Blob |
 | `ReadableStream<Uint8Array>` | 流式保存（File System Access 路径下不中转 Blob） |
-| `string` | 当作文本，默认 MIME `text/plain;charset=utf-8` |
-| `{ url: string }` | 先下载，再保存；区别于上面的 `string`，避免歧义 |
+| `string` | 当作**文本内容**保存，默认 MIME `text/plain;charset=utf-8` |
+| `{ url: string }` | URL 下载。同源 URL 与跨域无 CORS 的 URL 不走 fetch，直接交给浏览器（与 FileSaver 一致）；跨域 + CORS 通过的 URL 才会被读取为 Blob 再保存 |
 
 ### `SaveOptions`
 
@@ -114,7 +114,12 @@ interface SaveProgressEvent {
 interface SaveResult {
   filename: string;
   bytes: number;
-  method: 'file-system-access' | 'anchor-download' | 'data-url';
+  method:
+    | 'file-system-access'  // showSaveFilePicker
+    | 'anchor-download'     // <a download> + blob URL
+    | 'anchor-navigate'     // <a href=url>，URL 字符串源专用（同源 / 无 CORS）
+    | 'ms-save-blob'        // navigator.msSaveOrOpenBlob，旧 Edge / IE10+
+    | 'data-url';           // FileReader / popup 兜底
   aborted: boolean;
   durationMs: number;
 }
@@ -152,11 +157,20 @@ import { SaveError, SaveAbortError, SaveDownloadError } from 'savekit';
 
 ## 保存策略的选择
 
-在浏览器中，`save()` 会按以下优先级选择策略：
+策略选择与 FileSaver.js 的 Path A/B/C 完全对齐，只在最前面增加了 File System Access 这一首选项。
 
-1. **`file-system-access`**（推荐）：可用时通过 `window.showSaveFilePicker` 弹出系统级"另存为"对话框，并支持**流式写入**，对大文件友好
-2. **`anchor-download`**：`<a download>` + `URL.createObjectURL`，覆盖绝大多数现代浏览器
-3. **`data-url`**：`FileReader` + `data:` URL 兜底，主要为 iOS Safari 老版本
+**对 Blob 类输入**，按以下顺序挑选：
+
+1. **`file-system-access`**（`preferFilePicker: true` 且可用时）：`window.showSaveFilePicker` 弹出系统级"另存为"对话框，**流式写入**对大文件友好
+2. **`anchor-download`**（FileSaver Path A）：`<a download>` + `URL.createObjectURL`，覆盖绝大多数现代浏览器；macOS WebView 不走这条
+3. **`ms-save-blob`**（FileSaver Path B）：`navigator.msSaveOrOpenBlob`，IE10+ / 旧 Edge
+4. **`data-url`**（FileSaver Path C）：弹一个隐藏新窗口（避开拦截器），用 `FileReader` 转 `data:` URL 或 blob URL 灌进去；专门为 Chrome iOS、Safari + `application/octet-stream`、macOS WebView 保底
+
+**对 URL 字符串输入**（`{ url }`），额外的路由规则（与 FileSaver 完全一致）：
+
+- 同源 URL → `anchor-navigate`：直接点 `<a download href=url>`，不发起 fetch
+- 跨域 URL + 服务端有 CORS（HEAD 探测通过） → 下载为 Blob，再走上面的策略链
+- 跨域 URL + 无 CORS → `anchor-navigate` + `target=_blank`：交给浏览器自己处理（与 FileSaver 行为一致；此时浏览器忽略 `download` 属性，自定义文件名失效）
 
 返回的 `SaveResult.method` 字段告诉你实际走了哪条路径，便于埋点。
 
@@ -172,19 +186,24 @@ import { SaveError, SaveAbortError, SaveDownloadError } from 'savekit';
 差异点：
 
 - `saveAs(string)` 在旧库里被当作 URL；本库视为**文本内容**。要下载远程文件请改用 `save({ url }, ...)`。
-- `saveAs` 现在返回 Promise，原同步签名同样工作。
-- 不再支持 IE / 旧 Edge。
+- `saveAs` 现在返回 `Promise<SaveResult>`：`await` 取结果即可，不 `await` 也能正常触发下载（与原库的 fire-and-forget 用法兼容）。
+- 浏览器兼容范围与 FileSaver.js 等价（含 `msSaveOrOpenBlob` 等 legacy 路径），不会因为"现代化"丢掉老环境。
+- 如需进度 / 成功 / 失败 / 取消的钩子，使用本库的 `onProgress / onSuccess / onError / onAbort`（upstream FileSaver.js 没有这些回调，是本库新增）。
 
 ## 浏览器兼容
 
-| 浏览器 | 最低版本 | 走的策略 |
-|---|---|---|
-| Chrome / Edge | 90+ | file-system-access |
-| Firefox | 100+ | anchor-download |
-| Safari | 14+ | anchor-download |
-| iOS Safari | 13+ | anchor-download / data-url |
+策略选择与 FileSaver.js 一致，再加上 File System Access 这一首选项。下表是 Blob 类输入的实际走向：
 
-Node.js / SSR 环境下 `save()` 会抛 `SaveError('No available save strategy')`，请仅在客户端调用。
+| 浏览器 / 环境 | 实际走的策略 |
+|---|---|
+| Chrome 89+ / Edge 89+（`preferFilePicker` 为默认 `true`） | `file-system-access` |
+| Firefox / Safari 14+ / 上面两者关掉 picker 时 | `anchor-download` |
+| 旧 Edge（非 Chromium）/ IE10+ | `ms-save-blob` |
+| Chrome iOS、macOS WebView、Safari + `application/octet-stream` | `data-url` |
+
+URL 字符串输入还会经历同源 / CORS 判断，可能直接走 `anchor-navigate`（详见上一节"保存策略的选择"）。
+
+Node.js / SSR / 无 DOM 的 Web Worker 中调用 `save()` 会抛 `SaveError('No available save strategy in this environment')`，请仅在浏览器主线程调用。
 
 ## 开发
 
@@ -196,20 +215,6 @@ pnpm lint           # biome check
 pnpm build          # 出 dist/
 pnpm playground     # 本地手测页面（在线演示同源代码）
 ```
-
-## 发版流程
-
-本仓库采用 **tag 触发**的发布模式：日常提交只会跑 CI 与构建演示页，不会发包。需要发版时：
-
-```bash
-# 1. 确认 package.json 的 version 是目标版本
-# 2. 提交所有改动后，执行：
-pnpm release:tag
-```
-
-`release:tag` 会读取 `package.json` 的 `version`，创建 `vX.Y.Z` 的带注解 tag 并推送到远端。GitHub Actions 上的 `release.yml` 监听到 tag 后会自动跑完整流水线并以 `--provenance` 方式发布到 npm。
-
-**Playground 演示页**会在每次 push 到 `main` 时由 `deploy-playground.yml` 自动构建并部署到 GitHub Pages。
 
 ## 致谢
 
