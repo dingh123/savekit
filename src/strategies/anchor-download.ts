@@ -1,3 +1,4 @@
+import { clickAnchor } from '../dom.js';
 import { getBlobUrlApi } from '../env.js';
 import { SaveError } from '../errors.js';
 
@@ -12,7 +13,7 @@ export interface AnchorWriteResult {
   bytes: number;
 }
 
-export function writeViaAnchorDownload(opts: AnchorWriteOptions): AnchorWriteResult {
+export async function writeViaAnchorDownload(opts: AnchorWriteOptions): Promise<AnchorWriteResult> {
   if (typeof document === 'undefined') {
     throw new SaveError('document is not available; cannot use anchor-download strategy');
   }
@@ -26,13 +27,6 @@ export function writeViaAnchorDownload(opts: AnchorWriteOptions): AnchorWriteRes
   a.rel = 'noopener';
   a.style.display = 'none';
 
-  document.body?.appendChild(a);
-  try {
-    a.click();
-  } finally {
-    document.body?.removeChild(a);
-  }
-
   setTimeout(() => {
     try {
       urlApi.revokeObjectURL(objectUrl);
@@ -40,6 +34,22 @@ export function writeViaAnchorDownload(opts: AnchorWriteOptions): AnchorWriteRes
       /* ignore */
     }
   }, REVOKE_DELAY_MS);
+
+  document.body?.appendChild(a);
+  // FileSaver.js Path A blob branch uses `setTimeout(click, 0)` here. Older
+  // WebKit dropped immediate clicks on a freshly-minted blob: URL — letting
+  // the current task complete before dispatching gives the URL time to
+  // register in the browser's blob registry.
+  await new Promise<void>((resolve) => {
+    setTimeout(() => {
+      try {
+        clickAnchor(a);
+      } finally {
+        document.body?.removeChild(a);
+        resolve();
+      }
+    }, 0);
+  });
 
   return { bytes: opts.blob.size };
 }

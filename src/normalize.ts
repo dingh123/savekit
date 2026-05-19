@@ -27,7 +27,12 @@ export function normalize(data: SaveData, mimeType?: string): NormalizedSource {
       totalBytes: blob.size,
     };
     if (finalMime) result.suggestedMime = finalMime;
-    if (data instanceof File) result.suggestedMime = result.suggestedMime ?? data.type;
+    if (data instanceof File) {
+      result.suggestedMime = result.suggestedMime ?? data.type;
+      // FileSaver.js parity: fall back to File.name when no explicit filename
+      // is provided.
+      if (data.name) result.suggestedName = data.name;
+    }
     return result;
   }
 

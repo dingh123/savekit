@@ -3,6 +3,7 @@ export interface EnvCapabilities {
   hasDownloadAttr: boolean;
   hasFileReader: boolean;
   hasBlobUrl: boolean;
+  hasMsSaveBlob: boolean;
 }
 
 function safe<T>(fn: () => T, fallback: T): T {
@@ -31,6 +32,13 @@ export function detectEnv(): EnvCapabilities {
         (typeof URL.createObjectURL === 'function' ||
           // biome-ignore lint/suspicious/noExplicitAny: legacy webkit URL
           typeof (globalThis as any).webkitURL?.createObjectURL === 'function'),
+      false,
+    ),
+    hasMsSaveBlob: safe(
+      () =>
+        typeof navigator !== 'undefined' &&
+        // biome-ignore lint/suspicious/noExplicitAny: legacy IE/Edge API
+        typeof (navigator as any).msSaveOrOpenBlob === 'function',
       false,
     ),
   };

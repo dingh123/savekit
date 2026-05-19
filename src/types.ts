@@ -7,7 +7,12 @@ export type SaveData =
   | { url: string }
   | string;
 
-export type SaveMethod = 'file-system-access' | 'anchor-download' | 'data-url';
+export type SaveMethod =
+  | 'file-system-access'
+  | 'anchor-download'
+  | 'anchor-navigate'
+  | 'ms-save-blob'
+  | 'data-url';
 
 export type SavePhase = 'normalizing' | 'downloading' | 'picking' | 'writing' | 'done';
 
@@ -51,5 +56,7 @@ export interface NormalizedSource {
   stream?: ReadableStream<Uint8Array>;
   totalBytes?: number;
   suggestedMime?: string;
+  /** Fallback filename inferred from the source (e.g. File.name). */
+  suggestedName?: string;
   remoteUrl?: string;
 }

@@ -10,7 +10,10 @@
       "Bash(pnpm lint:fix)",
       "Bash(pnpm build *)",
       "Bash(npm view *)",
-      "Bash(pnpm playground:build)"
+      "Bash(pnpm playground:build)",
+      "Skill(using-superpowers)",
+      "Bash(node *)",
+      "Bash(pnpm exec *)"
     ]
   }
 }

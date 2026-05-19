@@ -14,6 +14,26 @@ function stubAnchor(): () => void {
   };
 }
 
+function stubCorsProbe(status = 200): () => void {
+  // biome-ignore lint/suspicious/noExplicitAny: hand-rolled minimal XHR stub
+  const original = (globalThis as any).XMLHttpRequest;
+  class XhrStub {
+    status = 0;
+    open() {
+      /* noop */
+    }
+    send() {
+      this.status = status;
+    }
+  }
+  // biome-ignore lint/suspicious/noExplicitAny: install stub
+  (globalThis as any).XMLHttpRequest = XhrStub as any;
+  return () => {
+    // biome-ignore lint/suspicious/noExplicitAny: restore
+    (globalThis as any).XMLHttpRequest = original;
+  };
+}
+
 const originalFetch = globalThis.fetch;
 
 afterEach(() => {
@@ -56,6 +76,7 @@ describe('callbacks', () => {
   });
 
   it('reports downloading progress for remote URL', async () => {
+    const restoreCors = stubCorsProbe(200);
     globalThis.fetch = vi.fn(async () => {
       const stream = new ReadableStream<Uint8Array>({
         start(c) {
@@ -71,15 +92,19 @@ describe('callbacks', () => {
     }) as typeof fetch;
 
     const events: SaveProgressEvent[] = [];
-    const result = await save(
-      { url: 'https://example.com/file.bin' },
-      { onProgress: (e) => events.push(e) },
-    );
-    expect(result.bytes).toBe(5);
-    const downloading = events.filter((e) => e.phase === 'downloading');
-    expect(downloading.length).toBeGreaterThanOrEqual(2);
-    expect(downloading[downloading.length - 1]?.loaded).toBe(5);
-    expect(downloading[downloading.length - 1]?.total).toBe(5);
+    try {
+      const result = await save(
+        { url: 'https://example.com/file.bin' },
+        { onProgress: (e) => events.push(e) },
+      );
+      expect(result.bytes).toBe(5);
+      const downloading = events.filter((e) => e.phase === 'downloading');
+      expect(downloading.length).toBeGreaterThanOrEqual(2);
+      expect(downloading[downloading.length - 1]?.loaded).toBe(5);
+      expect(downloading[downloading.length - 1]?.total).toBe(5);
+    } finally {
+      restoreCors();
+    }
   });
 
   it('fires onAbort + rejects with SaveAbortError; never onSuccess/onError', async () => {
@@ -100,24 +125,29 @@ describe('callbacks', () => {
   });
 
   it('fires onError + rejects with the error; never onSuccess/onAbort', async () => {
+    const restoreCors = stubCorsProbe(200);
     globalThis.fetch = vi.fn(async () => new Response('nope', { status: 500 })) as typeof fetch;
     const order: string[] = [];
     const caught: Error[] = [];
-    await expect(
-      save(
-        { url: 'https://example.com/x' },
-        {
-          onSuccess: () => order.push('success'),
-          onError: (e) => {
-            order.push('error');
-            caught.push(e);
+    try {
+      await expect(
+        save(
+          { url: 'https://example.com/x' },
+          {
+            onSuccess: () => order.push('success'),
+            onError: (e) => {
+              order.push('error');
+              caught.push(e);
+            },
+            onAbort: () => order.push('abort'),
           },
-          onAbort: () => order.push('abort'),
-        },
-      ),
-    ).rejects.toBeInstanceOf(SaveDownloadError);
-    expect(order).toEqual(['error']);
-    expect(caught[0]).toBeInstanceOf(SaveDownloadError);
+        ),
+      ).rejects.toBeInstanceOf(SaveDownloadError);
+      expect(order).toEqual(['error']);
+      expect(caught[0]).toBeInstanceOf(SaveDownloadError);
+    } finally {
+      restoreCors();
+    }
   });
 
   it('exception inside a callback does NOT derail the save flow', async () => {
@@ -136,6 +166,7 @@ describe('callbacks', () => {
   });
 
   it('aborts mid-download when signal fires', async () => {
+    const restoreCors = stubCorsProbe(200);
     globalThis.fetch = vi.fn(async (_url, init) => {
       const signal = (init as RequestInit | undefined)?.signal;
       return await new Promise<Response>((_resolve, reject) => {
@@ -159,7 +190,11 @@ describe('callbacks', () => {
       },
     );
     ctrl.abort();
-    await expect(promise).rejects.toBeInstanceOf(SaveAbortError);
-    expect(order).toEqual(['abort']);
+    try {
+      await expect(promise).rejects.toBeInstanceOf(SaveAbortError);
+      expect(order).toEqual(['abort']);
+    } finally {
+      restoreCors();
+    }
   });
 });

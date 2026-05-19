@@ -35,10 +35,40 @@ describe('data-url strategy', () => {
     vi.restoreAllMocks();
   });
 
-  it('reads blob and assigns a data: attachment URL to location', async () => {
+  it('uses FileReader → data:attachment URL when UA flags say so (macOS WebView)', async () => {
     const blob = new Blob(['hello'], { type: 'text/plain' });
-    const result = await writeViaDataUrl({ blob });
+    const result = await writeViaDataUrl({
+      blob,
+      ua: { isMacOSWebView: true, isSafari: false, isChromeIOS: false },
+    });
     expect(result.bytes).toBe(5);
+    expect(assignedUrl.startsWith('data:attachment/file;')).toBe(true);
+  });
+
+  it('preserves data: URL as-is for Chrome iOS', async () => {
+    const blob = new Blob(['hello'], { type: 'text/plain' });
+    await writeViaDataUrl({
+      blob,
+      ua: { isMacOSWebView: false, isSafari: false, isChromeIOS: true },
+    });
+    expect(assignedUrl.startsWith('data:text/plain')).toBe(true);
+  });
+
+  it('uses blob: URL when no UA flag triggers FileReader path', async () => {
+    const blob = new Blob(['hello'], { type: 'text/plain' });
+    await writeViaDataUrl({
+      blob,
+      ua: { isMacOSWebView: false, isSafari: false, isChromeIOS: false },
+    });
+    expect(assignedUrl.startsWith('blob:')).toBe(true);
+  });
+
+  it('Safari uses FileReader only when MIME is application/octet-stream', async () => {
+    const blob = new Blob(['x'], { type: 'application/octet-stream' });
+    await writeViaDataUrl({
+      blob,
+      ua: { isMacOSWebView: false, isSafari: true, isChromeIOS: false },
+    });
     expect(assignedUrl.startsWith('data:attachment/file;')).toBe(true);
   });
 });
